@@ -1,0 +1,10 @@
+.my-button{
+    max-width: 800px;
+    min-width:130px;
+    height: auto;
+    padding: 10px;
+    font-size: 1.2em;
+    border-radius: 30px;
+    font-weight: bolder;
+    letter-spacing: 0.05em;
+}
