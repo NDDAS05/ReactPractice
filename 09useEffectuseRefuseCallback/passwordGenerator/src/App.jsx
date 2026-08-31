@@ -16,7 +16,7 @@ function App() {
   const [password, setPassword] = useState("");
   //----------
   const passwordRef = useRef(null); // useRef returns an object "reference". The object in question looks like this { current: null }
-  // passwordRef holds reference to this object and it persists between renders. 20 re-renders(NOT RELOAD-IT DESTROYS EVERYTHING) after, passwordRef still holds reference to that same object.
+  // passwordRef holds reference to this object and it persists between renders. 20 re-renders(NOT RELOAD-IT DESTROYS EVERYTHING) after, passwordRef still holds reference to that same object. because everytime passwordRef is reassigned- but with the same reference to the object created in first render.
   // Now we want to use a property of input HTMLElementObject say .select()
   // Since before render: there is NO DOM TREE.
   // After render THERE IS NO JSX.
@@ -169,3 +169,54 @@ function App() {
 }
 
 export default App;
+
+
+// In the password generator, we used useRef to get reference to input field.
+//I thought since input is not even created yet: this is needed since we could not directly access by querySelector or getElementById. But if we can access them, whats the point of useRef?
+
+//so these accesses will be before commit. event handlers are after commit (so my one button accessing others reference) did work? So getElementById inside those event handlers will have valid id but not that is loose in the function
+
+/*
+Exactly — you’ve nailed the distinction. Let me lay out the flow clearly:
+
+---
+
+## 🔹 Render vs Commit vs Event
+
+1. **Render phase**  
+   - React is building the virtual tree in memory.  
+   - At this point, DOM nodes don’t exist yet.  
+   - Any direct DOM queries (`document.getElementById`, `querySelector`) inside render logic will return `null` or stale values.  
+   - `useRef` objects exist, but `.current` is still `null` until commit.
+
+2. **Commit phase**  
+   - React flushes the virtual tree to the real DOM.  
+   - All elements are mounted.  
+   - React sets `ref.current` for each element with a `ref`.  
+   - Now the DOM nodes exist and refs are valid.
+
+3. **Event handling (after commit)**  
+   - When you click a button, the handler runs after commit.  
+   - At this point, the DOM is fully mounted, so both `ref.current` and `document.getElementById` will return valid nodes.  
+   - That’s why your button handler can safely access another element’s ref or query by ID.
+
+---
+
+## 🔹 Why your button worked
+- Even though the input is declared *below* the button in JSX, React mounts the entire tree before any event can fire.  
+- By the time you click the button, the input is already in the DOM, so `passwordRef.current` is valid.  
+- Similarly, `document.getElementById("passwordInput")` would also work inside the event handler, because the DOM node exists after commit.
+
+---
+
+## 🔹 The difference
+- **Inside render logic:** `getElementById` is unsafe (DOM not ready).  
+- **Inside event handlers or effects:** both `ref.current` and `getElementById` are safe, because they run after commit.  
+- **Best practice:** use `ref` because it’s scoped, stable, and doesn’t rely on global IDs.
+
+---
+
+✅ **Bottom line:** Your button handler worked because event handlers always run after commit, when the DOM is ready. `getElementById` inside those handlers will return a valid node — but it’s “loose” compared to `ref`, which is React’s scoped, reliable way to access the element.  
+
+Would you like me to show you a **side‑by‑side password copy example**: one using `getElementById` in the handler, and one using `useRef`, so you can see why the `useRef` version is cleaner and safer?
+*/
