@@ -1,5 +1,40 @@
 Notes important lines:
 ---
+
+# 🔑 When a FiberNode is re-used
+A FiberNode represents a unit of work for a React element. React tries to re-use the existing FiberNode if:
+
+- The type of the element is the same (e.g., `<div>` stays `<div>`, `<input>` stays `<input>`).
+
+- The key is the same (important for lists).
+
+- The position in the tree is stable (sibling order matters).
+
+If those conditions hold, React does not throw away the old FiberNode — instead, it updates its pendingProps with the new values.
+
+# 🔄 When a FiberNode is re-created
+A FiberNode is discarded and a new one is created if:
+
+- The element type changes `(e.g., <div> → <article>)`.
+
+- The key changes (e.g., list item key differs).
+
+ -The element is removed entirely from the tree.
+
+# 🎨 What about prop changes?
+Here’s the subtle part: prop changes do not cause FiberNode recreation. Instead, React reuses the FiberNode and just updates its props. Let’s look at your examples:
+
+- Div changes color ( `style={{color: "red"}}` → `style={{color: "blue"}}` )  
+-  Same type `(div)`, same key → FiberNode reused. The DOM update happens via React’s commit phase (it sets the new style on the existing DOM node).
+
+- Input tag value changes `(value="foo" → value="bar")`  
+- Same type (input), same key → FiberNode reused. React updates the DOM property value.
+> ⚠️ Note: controlled vs uncontrolled inputs have special handling, but FiberNode itself is not recreated.
+
+- Div’s height/width changes `(style={{width:100}}` → `style={{width:200}}) ` 
+- Same type, same key → FiberNode reused. DOM node gets updated with new style.
+
+---
 > Read this first.
 
 The **difference between React’s Virtual DOM and manual DOM changes** is not that React “creates the whole DOM again” (that’s a misconception). Both approaches ultimately update the same amount of content. The key distinction is:

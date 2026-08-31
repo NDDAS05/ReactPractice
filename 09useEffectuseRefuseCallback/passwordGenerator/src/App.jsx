@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 
 function App() {
   // We need: 1) A slider that controls password length
@@ -14,16 +14,30 @@ function App() {
   const [charsAllowed, setCharAllowed] = useState(false);
   // To hold the password itself that will be changed on some button clicks.
   const [password, setPassword] = useState("");
-
+  //----------
+  const passwordRef = useRef(null); // useRef returns an object "reference". The object in question looks like this { current: null }
+  // passwordRef holds reference to this object and it persists between renders. 20 re-renders(NOT RELOAD-IT DESTROYS EVERYTHING) after, passwordRef still holds reference to that same object.
+  // Now we want to use a property of input HTMLElementObject say .select()
+  // Since before render: there is NO DOM TREE.
+  // After render THERE IS NO JSX.
+  // How do we refer input field itself when dom tree is not even created?
+  // That is where useRef comes in.
+  // <input ref={passwordRef}.....>
+  // ref is a JSX RESERVED KEYWORD. It, when creating the dom element, attaches the reference to that input field to Node.ref.current.
+  // It (passwordRef) is re-written in subsequent renders: but with the same reference to the object that it created during 1st render.
+  // React re-renders component only when their id, tag name or position change. Any else change causes in place update. 
+  // So the reference to input is valid 20-re-renders after. Element is still same, fibre reconciliation algorithm does not EVEN TOUCH IT (or does in place update if something- like value here- changes)
+  //----------
 
   // But we still don't know how to trigger the function that will actually generate the password ON BOOTUP of the Site: that is user interactivity. (useEffect)
 
   // Also, we need to make it so functions do not RERUN if nothing changed between reloads.
   // That is why we use : useCallback
-  // Goal: useCallback for Optimization (14:55 - 18:15):
+  // Goal: useCallback for Optimization:
   // Used to memoize the password generator function definition.
   // The goal is to cache the function in memory and prevent unnecessary re-creations during re-renders, unless the dependencies (like length, numberAllowed, or characterAllowed) change.
-
+  
+  // DOCS: 
   // useCallback is a React Hook that lets you cache a function definition between re-renders.
 
   // const cachedFn = useCallback(fn, dependencies)
@@ -39,7 +53,7 @@ function App() {
   // This is important: because function() or ()=>{} always CREATES new functions. So it is NOT POSSIBLE to check if previous and current functions are same or not.
   // This comparison is thus done on DEPENDENCIES.
 
-  // React will not call your function. The function is returned to you so you can decide when and whether to call it.
+  // React will not call the function. The function is returned to us so we can decide when and whether to call it.
 
   // dependencies: The list of all reactive values referenced inside of the fn code. Reactive values include props, state, and all the variables and functions declared directly inside your component body.
 
@@ -65,7 +79,14 @@ function App() {
     }
     setPassword(str);
     console.log(str);
-  }, [length, charsAllowed, numberAllowed]); 
+  }, [length, charsAllowed, numberAllowed]);
+  
+  const copyPasswordClipboard = useCallback(()=>{
+    passwordRef.current?.select();
+    passwordRef.current?.setSelectionRange(0, 2); // can customize upto what we can select.
+    window.navigator.clipboard.writeText(password); // Note: we DID NOT USE THE RANGE in above line. EVERYTHING IS COPIED. What gets copied is not tied to DOM at all. Its entirely tied to JS.
+  }, [password])
+
 
   // if we pass "password" we will be in a INFINITE LOOP
   // Why? cuz password is given as a dependency. Which is "" at first.
@@ -101,8 +122,13 @@ function App() {
             className="w-6/9 py-2 px-3 outline-1 rounded-xl shadow-xl shadow-slate-300 my-2"
             placeholder="Password"
             readOnly
+            ref={passwordRef}
           />
-          <button className="relative flex items-center px-6 py-3 overflow-hidden font-medium transition-all bg-indigo-500 rounded-md group my-2">
+          {/* Note: ref.current is set to NULL after it unmounts. UNMOUNTS means when this input HTMLElementObject is NO LONGER IN DOM TREE.
+              This DOES NOT HAPPEN IN RE_RENDER. The dom tree persists (even if some other node changes, this input NODE is never changed.). During normal re-renders, the ref stays intact — it continues pointing to the same DOM node.
+              Only when the element is removed from the DOM tree (unmounted) does React clear it to null.
+              Unmount will happen if: tab is closed, 2. tab is RELOADED which clears everything. */}
+          <button onClick={copyPasswordClipboard} className="relative flex items-center px-6 py-3 overflow-hidden font-medium transition-all bg-indigo-500 rounded-md group my-2">
             <span className="absolute top-0 right-0 inline-block w-4 h-4 transition-all duration-500 ease-in-out bg-indigo-700 rounded group-hover:-mr-4 group-hover:-mt-4">
               <span className="absolute top-0 right-0 w-5 h-5 rotate-45 translate-x-1/2 -translate-y-1/2 bg-white"></span>
             </span>
