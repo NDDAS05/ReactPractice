@@ -17,12 +17,6 @@ function App() {
   //----------
   const passwordRef = useRef(null); // useRef returns an object "reference". The object in question looks like this { current: null }
   // passwordRef holds reference to this object and it persists between renders. 20 re-renders(NOT RELOAD-IT DESTROYS EVERYTHING) after, passwordRef still holds reference to that same object. because everytime passwordRef is reassigned- but with the same reference to the object created in first render.
-  // Now we want to use a property of input HTMLElementObject say .select()
-  // Since before render: there is NO DOM TREE.
-  // After render THERE IS NO JSX.
-  // How do we refer input field itself when dom tree is not even created?
-  // That is where useRef comes in.
-  // <input ref={passwordRef}.....>
   // ref is a JSX RESERVED KEYWORD. It, when creating the dom element, attaches the reference to that input field to Node.ref.current.
   // It (passwordRef) is re-written in subsequent renders: but with the same reference to the object that it created during 1st render.
   // React re-renders component only when their id, tag name or position change. Any else change causes in place update. 
@@ -78,11 +72,24 @@ function App() {
       str += pw[index];
     }
     setPassword(str);
-    console.log(str);
   }, [length, charsAllowed, numberAllowed]);
   
   const copyPasswordClipboard = useCallback(()=>{
-    passwordRef.current?.select();
+    /*
+    What if you used document.querySelector?
+
+    If you replaced the useRef logic with document.querySelector("input").select(), it would technically work, but it introduces several anti-patterns in React:
+
+    Component Isolation (The Biggest Issue): React components are meant to be reusable. If you render your <App/> component twice on the same page, document.querySelector("input") will always grab the first input it finds on the entire webpage. Clicking "Copy" on the second password generator would highlight the text in the first one. useRef is locally scoped, guaranteeing you only interact with the exact input tied to that specific component instance.
+
+    Bypassing the Virtual DOM: React keeps a lightweight copy of the DOM (the Virtual DOM) to optimize updates. When you use document.querySelector, you step outside of React's awareness and query the real browser DOM directly.
+
+
+    // This bellow one does not happen as it is tied to onClick here. But this CAN happen if the access was loose in the function. 
+    Lifecycle Unpredictability: React controls when elements are added or removed from the screen. If you try to query an element before React has officially mounted it to the DOM (or after it unmounts), your query will return null and crash your app. useRef safely handles these lifecycle changes by setting .current to the node only when it actually exists.
+    
+    */
+    passwordRef.current?.select(); // these "?" checks are not necessary as user can not fire the onClick untill dom is comitted. So current will not be null when user has access to copy button. This is just a standard practice.
     passwordRef.current?.setSelectionRange(0, 2); // can customize upto what we can select.
     window.navigator.clipboard.writeText(password); // Note: we DID NOT USE THE RANGE in above line. EVERYTHING IS COPIED. What gets copied is not tied to DOM at all. Its entirely tied to JS.
   }, [password])
@@ -105,9 +112,9 @@ function App() {
   // useEffect again calls the returned different function by useCallback-> inside which is setState(pw)-> this again schedules the rerender. Since pw is randomly generated, between two renders pw is never same. So useCallback dependency are also never same. So this forms an infinite loop. useEffect modifies password by calling function returned by useCallback-triggering a rerender. In that rerender, useCallback changes its return value as pw changed. This makes useEffect run again during mount phase as func returned by useCallback changed.
   // useCallback stabilizes a function's reference between renders as long as its dependencies remain unchanged.
 
-  useEffect(()=>{
-    passwordGenerator()
-  },[length, charsAllowed, numberAllowed, passwordGenerator]); // only password generator is enough as pW itself depends on length, charsAllowed and numberAllowed
+  useEffect( // react ACTUALLY CALLS it during initial render, and in subsequent renders ONLY IF DEPENDENCIES CHANGED.
+    passwordGenerator
+  ,[length, charsAllowed, numberAllowed, passwordGenerator]); // only password generator is enough as pW itself depends on length, charsAllowed and numberAllowed
 
   
 
